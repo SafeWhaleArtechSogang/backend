@@ -1,0 +1,45 @@
+package com.safewhale.auth.service;
+
+import com.safewhale.admin.repository.AdminRepository;
+import com.safewhale.common.exception.BusinessException;
+import com.safewhale.common.exception.ErrorCode;
+import com.safewhale.common.security.JwtTokenProvider;
+import com.safewhale.common.security.PrincipalType;
+import com.safewhale.user.domain.User;
+import com.safewhale.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+    private final SocialOAuthClient socialOAuthClient;
+    private final UserRepository userRepository;
+    private final AdminRepository adminRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider tokenProvider;
+
+    @Transactional
+    public JwtTokenProvider.TokenPair loginWithGoogle(String idToken) {
+        SocialOAuthClient.SocialProfile profile = socialOAuthClient.getGoogleProfile(idToken);
+        User user = userRepository.findByProviderAndProviderId(profile.provider(), profile.providerId())
+                .orElseGet(() -> userRepository.save(new User(profile.provider(), profile.providerId(), profile.nickname())));
+        return tokenProvider.issue(user.getId(), PrincipalType.USER);
+    }
+
+    @Transactional(readOnly = true)
+    public JwtTokenProvider.TokenPair loginAdmin(String loginId, String password) {
+        var admin = adminRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN, "관리자 로그인 정보가 올바르지 않습니다."));
+        if (!passwordEncoder.matches(password, admin.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN, "관리자 로그인 정보가 올바르지 않습니다.");
+        }
+        return tokenProvider.issue(admin.getId(), PrincipalType.ADMIN);
+    }
+
+    public JwtTokenProvider.TokenPair refresh(String refreshToken) {
+        return tokenProvider.refresh(refreshToken);
+    }
+}

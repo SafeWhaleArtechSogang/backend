@@ -1,0 +1,51 @@
+name: safewhale
+
+services:
+  backend:
+    image: safewhale/backend:${IMAGE_TAG:-local}
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-safewhale}
+      DB_USERNAME: ${POSTGRES_USER:-safewhale}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-safewhale}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5175}
+      FILE_UPLOAD_DIR: /app/uploads
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - safewhale-uploads:/app/uploads
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-safewhale}
+      POSTGRES_USER: ${POSTGRES_USER:-safewhale}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safewhale}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - safewhale-postgres:/var/lib/postgresql/data
+
+volumes:
+  safewhale-postgres:
+  safewhale-uploads:

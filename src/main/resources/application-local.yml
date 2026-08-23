@@ -1,0 +1,10 @@
+app:
+  external:
+    ai: mock
+    social-login: google
+    push: mock
+    storage: local
+
+logging:
+  level:
+    com.safewhale: DEBUG
