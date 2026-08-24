@@ -33,7 +33,9 @@ public class AiAnalysisService {
     @Transactional
     public ReportResponse analyzeContent(Long reportId, Long userId, String description) {
         var report = reportService.getOwnedDraft(reportId, userId);
-        String location = report.getBuildingNameSnapshot() == null ? "위치 미정" : report.getBuildingNameSnapshot();
+        String location = report.getLocationDescription() != null && !report.getLocationDescription().isBlank()
+                ? report.getLocationDescription()
+                : report.getBuildingNameSnapshot() == null ? "위치 미정" : report.getBuildingNameSnapshot();
         var result = client.analyzeContent(description, location);
         var department = departmentRepository.findByCode(result.departmentCode())
                 .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND));
@@ -43,6 +45,26 @@ public class AiAnalysisService {
 
     public AiAnalysisClient.DraftResult draftFromText(String text) {
         return client.draftFromText(text);
+    }
+
+    @Transactional(readOnly = true)
+    public AiAnalysisClient.QuestionSet createReportQuestions(Long reportId, Long userId, String incidentDescription) {
+        reportService.getOwnedDraft(reportId, userId);
+        return client.createReportQuestions(incidentDescription);
+    }
+
+    @Transactional
+    public AiAnalysisClient.ReportDraft createReportDraft(Long reportId, Long userId, String locationDescription,
+                                                           String incidentDescription,
+                                                           List<AiAnalysisClient.Answer> answers) {
+        var report = reportService.getOwnedDraft(reportId, userId);
+        var draft = client.createReportDraft(locationDescription, incidentDescription, answers);
+        var analysis = client.analyzeContent(draft.hazardContent(), locationDescription);
+        var department = departmentRepository.findByCode(analysis.departmentCode())
+                .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND));
+        report.applyAiAnalysis(draft.summary(), draft.hazardContent(), analysis.riskLevel(), department,
+                analysis.detectedHazards());
+        return draft;
     }
 
     public record LocationCandidate(Long buildingId, String name, BigDecimal lat, BigDecimal lng) {}

@@ -29,7 +29,7 @@ public class ReportViewService {
                 ? report.getReporter().getName() : null;
         return new ReportResponse(report.getId(), report.getTrackingId(), report.getSummary(), report.getDescription(),
                 report.getStatus(), report.getRiskLevel(), report.getRiskLevelSource(), department, report.getReporterType(),
-                reporterName, building, report.getIndoor(), report.getFloor(), report.getRoom(), report.getLat(), report.getLng(),
+                reporterName, building, report.getLocationDescription(), report.getIndoor(), report.getFloor(), report.getRoom(), report.getLat(), report.getLng(),
                 report.getDetectedHazards(), report.getReportFileUrl(), photos, timeline, report.getSubmittedAt(), report.getCreatedAt());
     }
 }

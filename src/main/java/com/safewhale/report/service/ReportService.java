@@ -45,7 +45,8 @@ public class ReportService {
         Report report = getOwnedDraft(id, userId);
         Building building = request.buildingId() == null ? null : buildingRepository.findById(request.buildingId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BUILDING_NOT_FOUND));
-        report.updateLocation(building, request.indoor(), request.floor(), request.room(), request.lat(), request.lng());
+        report.updateLocation(building, request.locationDescription(), request.indoor(), request.floor(), request.room(),
+                request.lat(), request.lng());
         return viewService.toResponse(report, false, false);
     }
 
@@ -136,7 +137,7 @@ public class ReportService {
         return userId;
     }
 
-    public record LocationRequest(Long buildingId, Boolean indoor, String floor, String room,
+    public record LocationRequest(Long buildingId, String locationDescription, Boolean indoor, String floor, String room,
                                   BigDecimal lat, BigDecimal lng) {}
     public record UpdateRequest(String summary, String description, ReporterType reporterType, Long parentReportId) {}
 

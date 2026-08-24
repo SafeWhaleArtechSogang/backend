@@ -42,6 +42,8 @@ public class Report extends BaseTimeEntity {
     private Building building;
     @Column(name = "building_name_snapshot", length = 100)
     private String buildingNameSnapshot;
+    @Column(name = "location_description", length = 200)
+    private String locationDescription;
     @Column(name = "is_indoor")
     private Boolean indoor;
     @Column(length = 10)
@@ -70,10 +72,11 @@ public class Report extends BaseTimeEntity {
         return report;
     }
 
-    public void updateLocation(Building building, Boolean indoor, String floor, String room,
+    public void updateLocation(Building building, String locationDescription, Boolean indoor, String floor, String room,
                                BigDecimal lat, BigDecimal lng) {
         this.building = building;
         this.buildingNameSnapshot = building == null ? null : building.getName();
+        this.locationDescription = locationDescription;
         this.indoor = indoor;
         this.floor = floor;
         this.room = room;
