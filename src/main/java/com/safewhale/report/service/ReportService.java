@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class ReportService {
     private final NotificationRepository notificationRepository;
     private final HwpReportGenerator hwpReportGenerator;
     private final ReportViewService viewService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ReportResponse createDraft(Long userId) {
@@ -83,6 +85,8 @@ public class ReportService {
                 ActorType.USER, userId, null, ActivityType.STATUS_CHANGE));
         notificationRepository.save(new Notification(report, report.getReporter(), NotificationType.SUBMITTED,
                 "신고가 접수되었습니다", trackingId + " 신고가 정상적으로 접수되었습니다."));
+        // 담당자용 인사이트는 커밋 이후 비동기로 만든다. 제출 응답을 붙잡아 두지 않는다.
+        eventPublisher.publishEvent(new ReportSubmittedEvent(report.getId()));
         return viewService.toResponse(report, true, false);
     }
 

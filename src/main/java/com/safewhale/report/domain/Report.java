@@ -32,6 +32,10 @@ public class Report extends BaseTimeEntity {
     private RiskLevel riskLevel;
     @Enumerated(EnumType.STRING) @Column(name = "risk_level_source", nullable = false, length = 10)
     private RiskLevelSource riskLevelSource;
+    @Column(name = "risk_level_rationale", columnDefinition = "TEXT")
+    private String riskLevelRationale;
+    @Column(name = "risk_level_changed")
+    private Boolean riskLevelChanged;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "department_id")
     private Department department;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "reporter_id", nullable = false)
@@ -95,6 +99,12 @@ public class Report extends BaseTimeEntity {
         this.detectedHazards = detectedHazards;
     }
 
+    /** ④가 재산출한 위험 등급의 판단 근거. 등급 자체는 applyAiAnalysis 가 세운다. */
+    public void applyRiskRationale(String rationale, Boolean changed) {
+        this.riskLevelRationale = rationale;
+        this.riskLevelChanged = changed;
+    }
+
     public void updateDraft(String summary, String description, ReporterType reporterType, Long parentReportId) {
         ensureDraft();
         if (summary != null) this.summary = summary;
@@ -128,6 +138,8 @@ public class Report extends BaseTimeEntity {
     public void adjustRiskLevel(RiskLevel riskLevel) {
         this.riskLevel = riskLevel;
         this.riskLevelSource = RiskLevelSource.ADMIN;
+        this.riskLevelRationale = null;
+        this.riskLevelChanged = null;
     }
 
     public void attachReportFile(String url) {

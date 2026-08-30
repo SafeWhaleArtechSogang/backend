@@ -56,7 +56,8 @@ public class MockAiAnalysisClient implements AiAnalysisClient {
                     location + "에 누수 또는 물 고임이 발생해 이용자가 미끄러질 위험이 있습니다. "
                             + context(duration, safety, traffic),
                     "누수 원인 점검과 배수 조치 후 미끄럼 주의 표시 설치를 요청합니다.",
-                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident);
+                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident,
+                    "[목 분석] 통행 영향과 안전 조치 여부를 근거로 중간 등급으로 봄", false);
         }
         if (containsAny(normalized, "타일", "보도블록", "바닥", "포트홀", "맨홀")) {
             return new ReportDraft(
@@ -64,7 +65,8 @@ public class MockAiAnalysisClient implements AiAnalysisClient {
                     location + " 바닥 타일 또는 보행면이 파손되어 이용자가 걸려 넘어질 위험이 있습니다. "
                             + context(duration, safety, traffic),
                     "파손 부위 보수 또는 교체와 임시 안전 표시 설치를 요청합니다.",
-                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident);
+                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident,
+                    "[목 분석] 통행 영향과 안전 조치 여부를 근거로 중간 등급으로 봄", false);
         }
         if (containsAny(normalized, "조명", "가로등", "어두", "불이 꺼")) {
             return new ReportDraft(
@@ -72,7 +74,8 @@ public class MockAiAnalysisClient implements AiAnalysisClient {
                     location + "의 조명이 작동하지 않아 시야 확보가 어렵고 이동 중 사고 위험이 있습니다. "
                             + context(duration, safety, traffic),
                     "조명 기구와 전원 설비를 점검하고 고장 난 조명을 교체해 주세요.",
-                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident);
+                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident,
+                    "[목 분석] 통행 영향과 안전 조치 여부를 근거로 중간 등급으로 봄", false);
         }
         if (containsAny(normalized, "난간", "계단", "손잡이")) {
             return new ReportDraft(
@@ -80,14 +83,28 @@ public class MockAiAnalysisClient implements AiAnalysisClient {
                     location + "의 난간 또는 계단 시설이 손상되어 추락하거나 넘어질 위험이 있습니다. "
                             + context(duration, safety, traffic),
                     "손상된 난간과 계단을 즉시 점검·보수하고 수리 전까지 접근 통제를 요청합니다.",
-                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident);
+                    RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident,
+                    "[목 분석] 통행 영향과 안전 조치 여부를 근거로 중간 등급으로 봄", false);
         }
         return new ReportDraft(
                 location + " 시설 안전 신고",
                 location + "에서 다음 위험 요소가 확인되었습니다: " + incident + " "
                         + context(duration, safety, traffic),
                 "현장 점검 후 위험 요소를 보수하고 조치 전까지 임시 안전 표시를 설치해 주세요.",
-                RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident);
+                RiskLevel.MEDIUM, "FACILITY", "[목 분석] " + incident,
+                    "[목 분석] 통행 영향과 안전 조치 여부를 근거로 중간 등급으로 봄", false);
+    }
+
+    @Override
+    public Insight generateInsight(ReportContext context, ConfirmedReport confirmed) {
+        return new Insight(
+                "[목 인사이트] " + abbreviate(confirmed.title(), 120),
+                List.of("목", "시설", "안전"),
+                false,
+                "[목 인사이트] 유사 과거사례를 조회하지 않는 목 구현이라 반복 발생 여부를 판단하지 않음.",
+                "normal",
+                List.of(),
+                0);
     }
 
     private String context(String duration, String safety, String traffic) {

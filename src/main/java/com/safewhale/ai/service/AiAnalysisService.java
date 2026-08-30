@@ -70,7 +70,23 @@ public class AiAnalysisService {
                         "AI가 판정한 부서 코드를 찾을 수 없습니다: " + draft.departmentCode()));
         report.applyAiAnalysis(draft.summary(), draft.hazardContent(), draft.riskLevel(), department,
                 draft.detectedHazards());
+        report.applyRiskRationale(draft.riskLevelRationale(), draft.riskLevelChanged());
         return draft;
+    }
+
+    /**
+     * 제출이 끝난 신고에 대해 담당자용 인사이트를 만든다.
+     *
+     * <p>판단 근거는 사용자가 화면에서 고친 것까지 반영된 확정 신고 내용이다.
+     * 사진 판독은 캐시가 살아 있으면 재사용하고, 만료됐으면 사진으로 다시 판독한다.
+     */
+    @Transactional(readOnly = true)
+    public AiAnalysisClient.Insight generateInsight(Report report) {
+        String description = report.getDescription() == null || report.getDescription().isBlank()
+                ? report.getSummary() : report.getDescription();
+        return client.generateInsight(contextOf(report, description),
+                new AiAnalysisClient.ConfirmedReport(report.getTrackingId(), report.getSummary(),
+                        report.getDescription(), report.getRiskLevel()));
     }
 
     private AiAnalysisClient.ReportContext contextOf(Report report, String incidentDescription) {

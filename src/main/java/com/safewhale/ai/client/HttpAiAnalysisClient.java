@@ -1,12 +1,16 @@
 package com.safewhale.ai.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safewhale.ai.config.AiServerProperties;
 import com.safewhale.common.exception.BusinessException;
 import com.safewhale.common.exception.ErrorCode;
 import com.safewhale.report.domain.RiskLevel;
 import java.util.Base64;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.StringJoiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +24,7 @@ import org.springframework.stereotype.Component;
  * <pre>
  *   질문 단계 : ① /v1/vision/analyze → ② /v1/questions/next   (답변 하나 받을 때마다 1회)
  *   초안 단계 : (①은 캐시 재사용)     → ④ /v1/drafts/generate → ③ /v1/departments/classify
+ *   제출 이후 : (①은 캐시 재사용)     → ⑤ /v1/insights/generate   (비동기, 담당자용)
  * </pre>
  *
  * <p>②는 직전까지의 질문·답변을 이력으로 받아 아직 확인되지 않은 정보를 묻는 대화형
@@ -37,14 +42,17 @@ public class HttpAiAnalysisClient implements AiAnalysisClient {
     private final AiServerClient aiServer;
     private final AiVisionCache visionCache;
     private final AiServerProperties properties;
+    private final ObjectMapper objectMapper;
 
     /** 사진 없이 텍스트만 다루는 레거시 엔드포인트용. AI 서버에 대응 경로가 없다. */
     private final MockAiAnalysisClient textFallback = new MockAiAnalysisClient();
 
-    public HttpAiAnalysisClient(AiServerClient aiServer, AiVisionCache visionCache, AiServerProperties properties) {
+    public HttpAiAnalysisClient(AiServerClient aiServer, AiVisionCache visionCache, AiServerProperties properties,
+                                ObjectMapper objectMapper) {
         this.aiServer = aiServer;
         this.visionCache = visionCache;
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -106,7 +114,48 @@ public class HttpAiAnalysisClient implements AiAnalysisClient {
                 improvementSuggestion(draft),
                 toRiskLevel(draft.riskLevelFinal()),
                 department.departmentCode(),
-                vision.detectedHazard());
+                vision.detectedHazard(),
+                draft.riskLevelRationale(),
+                draft.riskLevelChanged());
+    }
+
+    @Override
+    public Insight generateInsight(ReportContext context, ConfirmedReport confirmed) {
+        AiServerClient.VisionResponse vision = analyzeVision(context);
+
+        AiServerClient.InsightResponse response = aiServer.generateInsight(new AiServerClient.InsightRequest(
+                context.sessionId(), confirmed.trackingId(), context.locationText(), vision.detectedHazard(),
+                vision.photoAnalysis(), vision.risk(), toAiRiskLevel(confirmed.riskLevel()), draftJson(confirmed)));
+
+        log.debug("AI 인사이트 생성 완료 session={} priority={} recurring={}",
+                context.sessionId(), response.recommendedPriority(), response.isRecurring());
+
+        return new Insight(
+                response.summary(),
+                response.keywords() == null ? List.of() : response.keywords(),
+                Boolean.TRUE.equals(response.isRecurring()),
+                response.insight(),
+                response.recommendedPriority(),
+                response.relatedReportIds() == null ? List.of() : response.relatedReportIds(),
+                response.similarCaseCount() == null ? 0 : response.similarCaseCount());
+    }
+
+    /** ⑤는 확정된 신고서를 JSON 문자열로 받는다. 사용자가 화면에서 고친 내용이 그대로 들어간다. */
+    private String draftJson(ConfirmedReport confirmed) {
+        Map<String, Object> draft = new LinkedHashMap<>();
+        draft.put("tracking_id", confirmed.trackingId());
+        draft.put("title", confirmed.title());
+        draft.put("content", confirmed.content());
+        draft.put("risk_level", toAiRiskLevel(confirmed.riskLevel()));
+        try {
+            return objectMapper.writeValueAsString(draft);
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ErrorCode.AI_SERVER_ERROR, "신고 내용을 직렬화하지 못했습니다.");
+        }
+    }
+
+    private String toAiRiskLevel(RiskLevel riskLevel) {
+        return riskLevel == null ? "medium" : riskLevel.name().toLowerCase(Locale.ROOT);
     }
 
     private AiServerClient.VisionResponse analyzeVision(ReportContext context) {

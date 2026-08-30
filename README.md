@@ -60,6 +60,7 @@ AI_MODE=http docker compose up -d --build backend
 | `POST /api/v1/ai/report-flow/next-question` (1번째) | `① /v1/vision/analyze` → `② /v1/questions/next` | 약 7초 |
 | `POST /api/v1/ai/report-flow/next-question` (2·3번째) | `② /v1/questions/next` | ①은 캐시 재사용, 약 2초 |
 | `POST /api/v1/ai/report-flow/draft` | `④ /v1/drafts/generate` → `③ /v1/departments/classify` | 약 5초 |
+| `POST /api/v1/reports/{id}/submit` | `⑤ /v1/insights/generate` | 커밋 후 **비동기**, 약 7초 |
 
 확인 질문은 한 번에 하나씩 만듭니다. 클라이언트가 지금까지의 질문·답변을 `answers` 로 함께 보내면
 그 내용을 이력으로 넘겨 아직 확인되지 않은 것을 묻습니다. 첫 호출은 `answers` 를 빈 배열로 보내고,
@@ -70,6 +71,27 @@ AI_MODE=http docker compose up -d --build backend
 - 위험 등급은 AI의 4단계(low/medium/high/critical)를 백엔드 3단계로 접습니다 (`critical` → `HIGH`).
 - 부서는 ai-server가 돌려준 코드를 `departments.code`로 조회합니다. 양쪽 코드 집합(`FACILITY`/`SAFETY_CENTER`/`GENERAL_AFFAIRS`)이 일치해야 합니다.
 - `POST /api/v1/ai/analyze-content`, `POST /api/v1/ai/draft-from-text`는 사진 없는 텍스트 전용 계약이라 ai-server에 대응 경로가 없습니다. `http` 모드에서도 목 응답을 반환합니다.
+
+### 위험도 근거와 담당자 인사이트 (관리자용)
+
+④가 함께 주는 위험 등급 판단 근거는 `reports.risk_level_rationale` / `risk_level_changed`에 저장합니다.
+⑤ 인사이트는 신고 제출이 **커밋된 뒤 비동기로** 생성해 `report_insights`에 넣습니다(신고 1건에 1행).
+제출 응답을 붙잡지 않으므로 접수는 즉시 끝나고, 생성이 실패해도 접수에는 영향이 없습니다.
+
+둘 다 담당자 내부용이라 제보자 대면 응답(`ReportResponse`)에는 넣지 않고 관리자 전용 경로로만 노출합니다.
+
+```bash
+# 관리자 토큰 (local 프로필 시드 계정)
+TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/admin/auth/login   -H 'Content-Type: application/json' -d '{"loginId":"admin","password":"admin1234"}'   | python -c 'import json,sys; print(json.load(sys.stdin)["data"]["accessToken"])')
+
+# 위험도 근거 + 인사이트 조회 (인사이트는 생성 전이면 null)
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/admin/reports/6/insight
+
+# 재생성 — 비동기 생성이 실패했거나 이 기능 이전에 접수된 신고에 쓴다
+curl -s -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/admin/reports/6/insight
+```
+
+인사이트를 보여줄 관리자 화면은 아직 없습니다. 현재는 위 API로만 확인합니다.
 
 ## IDE에서 백엔드만 실행
 

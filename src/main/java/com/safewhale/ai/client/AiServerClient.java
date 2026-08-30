@@ -63,6 +63,10 @@ public class AiServerClient {
         return post("/v1/drafts/generate", request, DraftResponse.class);
     }
 
+    public InsightResponse generateInsight(InsightRequest request) {
+        return post("/v1/insights/generate", request, InsightResponse.class);
+    }
+
     private <T> T post(String path, Object body, Class<T> type) {
         long started = System.nanoTime();
         try {
@@ -125,4 +129,13 @@ public class AiServerClient {
                                 String actionFundamental, String otherOpinion, String riskLevelFinal,
                                 String riskLevelRationale, Boolean riskLevelChanged, List<String> similarCaseIds,
                                 Integer similarCaseCount) {}
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record InsightRequest(String sessionId, String reportId, String locationText, String detectedHazard,
+                                 String photoAnalysis, String risk, String riskLevel, String draftJson) {}
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record InsightResponse(String summary, List<String> keywords, Boolean isRecurring, String insight,
+                                  String recommendedPriority, List<String> relatedReportIds,
+                                  List<String> similarCaseIds, Integer similarCaseCount) {}
 }
