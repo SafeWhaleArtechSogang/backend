@@ -4,7 +4,6 @@ import com.safewhale.ai.config.AiServerProperties;
 import com.safewhale.common.exception.BusinessException;
 import com.safewhale.common.exception.ErrorCode;
 import com.safewhale.report.domain.RiskLevel;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -19,14 +18,13 @@ import org.springframework.stereotype.Component;
  *
  * <p>신고 플로우 한 건은 다음 순서로 AI 서버를 탄다.
  * <pre>
- *   질문 단계 : ① /v1/vision/analyze → ② /v1/questions/next × N
- *   초안 단계 : (①은 캐시 재사용) → ④ /v1/drafts/generate → ③ /v1/departments/classify
+ *   질문 단계 : ① /v1/vision/analyze → ② /v1/questions/next   (답변 하나 받을 때마다 1회)
+ *   초안 단계 : (①은 캐시 재사용)     → ④ /v1/drafts/generate → ③ /v1/departments/classify
  * </pre>
  *
- * <p>ai-server 의 ②는 한 번에 질문 하나만 만드는 대화형 설계지만, 프런트는 질문 3개를
- * 한꺼번에 받아 화면에서 하나씩 보여준다. 그래서 여기서 N 번 순차 호출하며 앞서 만든
- * 질문을 "아직 답변 없음" 상태로 이력에 넣어 같은 질문이 반복되지 않게 한다.
- * (프런트를 순차 호출로 바꾸면 직전 답변까지 반영돼 질문 품질이 더 올라간다.)
+ * <p>②는 직전까지의 질문·답변을 이력으로 받아 아직 확인되지 않은 정보를 묻는 대화형
+ * 설계다. 그래서 질문을 미리 몰아 만들지 않고, 답변이 들어올 때마다 그 답변을 이력에
+ * 넣어 다음 질문을 만든다.
  */
 @Component
 @ConditionalOnProperty(name = "app.external.ai", havingValue = "http")
@@ -35,8 +33,6 @@ public class HttpAiAnalysisClient implements AiAnalysisClient {
 
     /** 프런트가 "질문 세 가지만" 구절을 굵게 강조하므로 문구를 유지한다. */
     private static final String QUESTION_INTRO = "신고서를 작성하기 위한 질문 세 가지만 더 물어볼게요.";
-    /** 답변이 아직 없어도 "이미 물어본 질문"이라는 사실은 알려야 같은 질문이 반복되지 않는다. */
-    private static final String UNANSWERED = "(아직 답변 전. 이미 제시한 질문이므로 같은 주제를 다시 묻지 말 것)";
 
     private final AiServerClient aiServer;
     private final AiVisionCache visionCache;
@@ -70,26 +66,24 @@ public class HttpAiAnalysisClient implements AiAnalysisClient {
     }
 
     @Override
-    public QuestionSet createReportQuestions(ReportContext context) {
-        AiServerClient.VisionResponse vision = analyzeVision(context);
+    public QuestionStep createReportQuestion(ReportContext context, List<Answer> answers) {
         int count = properties.questionCount();
-
-        List<Question> questions = new ArrayList<>(count);
-        StringJoiner history = new StringJoiner("\n");
-        for (int index = 1; index <= count; index++) {
-            AiServerClient.QuestionResponse response = aiServer.nextQuestion(new AiServerClient.QuestionRequest(
-                    context.sessionId(), context.locationText(), context.incidentDescription(), vision.toPayload(),
-                    history.length() == 0 ? null : history.toString(), index, count));
-
-            List<String> options = response.options() == null ? List.of()
-                    : response.options().stream().map(AiServerClient.OptionPayload::label).toList();
-            questions.add(new Question("q" + index, response.text(), options, true));
-
-            history.add("Q%d. %s".formatted(index, response.text()));
-            history.add("A%d. %s".formatted(index, UNANSWERED));
+        int index = (answers == null ? 0 : answers.size()) + 1;
+        if (index > count) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "질문 %d개를 모두 받았습니다.".formatted(count));
         }
-        log.debug("AI 확인 질문 {}개 생성 완료 session={}", questions.size(), context.sessionId());
-        return new QuestionSet(QUESTION_INTRO, questions);
+
+        AiServerClient.VisionResponse vision = analyzeVision(context);
+        AiServerClient.QuestionResponse response = aiServer.nextQuestion(new AiServerClient.QuestionRequest(
+                context.sessionId(), context.locationText(), context.incidentDescription(), vision.toPayload(),
+                formatQaHistory(answers), index, count));
+
+        List<String> options = response.options() == null ? List.of()
+                : response.options().stream().map(AiServerClient.OptionPayload::label).toList();
+
+        log.debug("AI 확인 질문 {}/{} 생성 session={}", index, count, context.sessionId());
+        return new QuestionStep(index == 1 ? QUESTION_INTRO : null,
+                new Question("q" + index, response.text(), options, true), index, count, index == count);
     }
 
     @Override

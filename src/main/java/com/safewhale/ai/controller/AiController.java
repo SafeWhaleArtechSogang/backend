@@ -37,29 +37,38 @@ public class AiController {
         return ApiResponse.ok(service.draftFromText(request.text()));
     }
 
-    @PostMapping("/report-flow/questions")
-    ApiResponse<AiAnalysisClient.QuestionSet> reportQuestions(
-            @Valid @RequestBody ReportQuestionsRequest request,
+    /**
+     * 확인 질문을 하나씩 받아간다. 지금까지의 질문·답변을 함께 보내면 그 내용을 반영해
+     * 다음 질문을 만든다. 첫 호출은 {@code answers} 를 비우거나 생략한다.
+     */
+    @PostMapping("/report-flow/next-question")
+    ApiResponse<AiAnalysisClient.QuestionStep> reportQuestion(
+            @Valid @RequestBody ReportQuestionRequest request,
             @AuthenticationPrincipal SecurityPrincipal principal) {
-        return ApiResponse.ok(service.createReportQuestions(
-                request.reportId(), principal.id(), request.incidentDescription()));
+        return ApiResponse.ok(service.createReportQuestion(
+                request.reportId(), principal.id(), request.incidentDescription(), toAnswers(request.answers())));
     }
 
     @PostMapping("/report-flow/draft")
     ApiResponse<AiAnalysisClient.ReportDraft> reportDraft(
             @Valid @RequestBody ReportDraftRequest request,
             @AuthenticationPrincipal SecurityPrincipal principal) {
-        List<AiAnalysisClient.Answer> answers = request.answers().stream()
+        return ApiResponse.ok(service.createReportDraft(request.reportId(), principal.id(),
+                request.locationDescription(), request.incidentDescription(), toAnswers(request.answers())));
+    }
+
+    private static List<AiAnalysisClient.Answer> toAnswers(List<ReportAnswerRequest> answers) {
+        if (answers == null) return List.of();
+        return answers.stream()
                 .map(answer -> new AiAnalysisClient.Answer(answer.questionId(), answer.question(), answer.answer()))
                 .toList();
-        return ApiResponse.ok(service.createReportDraft(request.reportId(), principal.id(),
-                request.locationDescription(), request.incidentDescription(), answers));
     }
 
     record LocationRequest(@NotNull BigDecimal lat, @NotNull BigDecimal lng) {}
     record ContentRequest(@NotNull Long reportId, String description) {}
     record DraftRequest(@NotBlank String text) {}
-    record ReportQuestionsRequest(@NotNull Long reportId, @NotBlank String incidentDescription) {}
+    record ReportQuestionRequest(@NotNull Long reportId, @NotBlank String incidentDescription,
+                                 List<@Valid ReportAnswerRequest> answers) {}
     record ReportDraftRequest(@NotNull Long reportId, @NotBlank String locationDescription,
                               @NotBlank String incidentDescription,
                               @NotEmpty List<@Valid ReportAnswerRequest> answers) {}

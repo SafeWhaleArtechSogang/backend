@@ -51,9 +51,10 @@ public class AiAnalysisService {
     }
 
     @Transactional(readOnly = true)
-    public AiAnalysisClient.QuestionSet createReportQuestions(Long reportId, Long userId, String incidentDescription) {
+    public AiAnalysisClient.QuestionStep createReportQuestion(Long reportId, Long userId, String incidentDescription,
+                                                              List<AiAnalysisClient.Answer> answers) {
         var report = reportService.getOwnedDraft(reportId, userId);
-        return client.createReportQuestions(contextOf(report, incidentDescription));
+        return client.createReportQuestion(contextOf(report, incidentDescription), answers);
     }
 
     @Transactional

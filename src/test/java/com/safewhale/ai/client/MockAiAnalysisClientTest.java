@@ -9,14 +9,34 @@ class MockAiAnalysisClientTest {
     private final MockAiAnalysisClient client = new MockAiAnalysisClient();
 
     @Test
-    void returnsThreeQuestionsForReportFlow() {
-        AiAnalysisClient.QuestionSet result = client.createReportQuestions(context("로욜라 도서관", "바닥 타일이 깨졌어요."));
+    void returnsFirstQuestionWithIntroduction() {
+        AiAnalysisClient.QuestionStep step =
+                client.createReportQuestion(context("로욜라 도서관", "바닥 타일이 깨졌어요."), List.of());
 
-        assertThat(result.introduction()).contains("질문 세 가지만");
-        assertThat(result.questions()).hasSize(3);
-        assertThat(result.questions().get(0).options())
-                .containsExactly("지나갈 수 있음", "우회해야 함", "통행 불가");
-        assertThat(result.questions()).allMatch(AiAnalysisClient.Question::allowCustom);
+        assertThat(step.introduction()).contains("질문 세 가지만");
+        assertThat(step.questionIndex()).isEqualTo(1);
+        assertThat(step.questionCount()).isEqualTo(3);
+        assertThat(step.last()).isFalse();
+        assertThat(step.question().options()).containsExactly("지나갈 수 있음", "우회해야 함", "통행 불가");
+        assertThat(step.question().allowCustom()).isTrue();
+    }
+
+    @Test
+    void advancesToNextQuestionAsAnswersAccumulate() {
+        AiAnalysisClient.ReportContext context = context("로욜라 도서관", "바닥 타일이 깨졌어요.");
+
+        AiAnalysisClient.QuestionStep second = client.createReportQuestion(context,
+                List.of(answer("traffic_impact", "통행 영향", "우회해야 함")));
+        AiAnalysisClient.QuestionStep third = client.createReportQuestion(context,
+                List.of(answer("traffic_impact", "통행 영향", "우회해야 함"),
+                        answer("duration", "발견 시점", "며칠 됐어요")));
+
+        assertThat(second.introduction()).isNull();
+        assertThat(second.questionIndex()).isEqualTo(2);
+        assertThat(second.last()).isFalse();
+        assertThat(third.questionIndex()).isEqualTo(3);
+        assertThat(third.last()).isTrue();
+        assertThat(second.question().id()).isNotEqualTo(third.question().id());
     }
 
     @Test

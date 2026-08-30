@@ -9,6 +9,15 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(name = "app.external.ai", havingValue = "mock", matchIfMissing = true)
 public class MockAiAnalysisClient implements AiAnalysisClient {
+    /** 목은 고정 질문 3개를 순서대로 하나씩 돌려준다. 답변 개수가 곧 진행 위치다. */
+    private static final List<Question> QUESTIONS = List.of(
+            new Question("traffic_impact", "통행에 얼마나 방해가 되나요?",
+                    List.of("지나갈 수 있음", "우회해야 함", "통행 불가"), true),
+            new Question("duration", "언제부터 이런 상태였나요?",
+                    List.of("오늘 처음 봤어요", "며칠 됐어요", "한참 됐어요"), true),
+            new Question("safety_control", "주변에 안전 표시나 통제선이 있나요?",
+                    List.of("아무 표시 없어요", "표시만 있어요", "통제 중이에요"), true));
+
     @Override
     public ContentAnalysis analyzeContent(String description, String location) {
         String input = description == null || description.isBlank() ? "현장 위험 요소가 발견되었습니다." : description;
@@ -22,16 +31,14 @@ public class MockAiAnalysisClient implements AiAnalysisClient {
     }
 
     @Override
-    public QuestionSet createReportQuestions(ReportContext context) {
-        return new QuestionSet(
-                "신고서를 작성하기 위한 질문 세 가지만 더 물어볼게요.",
-                List.of(
-                        new Question("traffic_impact", "통행에 얼마나 방해가 되나요?",
-                                List.of("지나갈 수 있음", "우회해야 함", "통행 불가"), true),
-                        new Question("duration", "언제부터 이런 상태였나요?",
-                                List.of("오늘 처음 봤어요", "며칠 됐어요", "한참 됐어요"), true),
-                        new Question("safety_control", "주변에 안전 표시나 통제선이 있나요?",
-                                List.of("아무 표시 없어요", "표시만 있어요", "통제 중이에요"), true)));
+    public QuestionStep createReportQuestion(ReportContext context, List<Answer> answers) {
+        int index = (answers == null ? 0 : answers.size()) + 1;
+        if (index > QUESTIONS.size()) {
+            throw new IllegalStateException("질문 %d개를 모두 받았습니다.".formatted(QUESTIONS.size()));
+        }
+        return new QuestionStep(
+                index == 1 ? "신고서를 작성하기 위한 질문 세 가지만 더 물어볼게요." : null,
+                QUESTIONS.get(index - 1), index, QUESTIONS.size(), index == QUESTIONS.size());
     }
 
     @Override

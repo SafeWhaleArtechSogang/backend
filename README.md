@@ -57,20 +57,19 @@ AI_MODE=http docker compose up -d --build backend
 
 | 백엔드 API | ai-server 호출 | 비고 |
 |---|---|---|
-| `POST /api/v1/ai/report-flow/questions` | `① /v1/vision/analyze` → `② /v1/questions/next` × 3 | Gemini 4회, 약 10~15초 |
-| `POST /api/v1/ai/report-flow/draft` | `④ /v1/drafts/generate` → `③ /v1/departments/classify` | ①은 캐시 재사용, 약 5~10초 |
+| `POST /api/v1/ai/report-flow/next-question` (1번째) | `① /v1/vision/analyze` → `② /v1/questions/next` | 약 7초 |
+| `POST /api/v1/ai/report-flow/next-question` (2·3번째) | `② /v1/questions/next` | ①은 캐시 재사용, 약 2초 |
+| `POST /api/v1/ai/report-flow/draft` | `④ /v1/drafts/generate` → `③ /v1/departments/classify` | 약 5초 |
+
+확인 질문은 한 번에 하나씩 만듭니다. 클라이언트가 지금까지의 질문·답변을 `answers` 로 함께 보내면
+그 내용을 이력으로 넘겨 아직 확인되지 않은 것을 묻습니다. 첫 호출은 `answers` 를 빈 배열로 보내고,
+응답의 `last` 가 `true` 면 다음은 초안 생성 차례입니다.
 
 - 사진은 신고에 첨부된 첫 장을 base64로 실어 보냅니다. 사진이 없으면 판독할 수 없어 502로 실패합니다.
 - ①의 판독 결과는 `report-{id}` 키로 30분간 메모리에 캐시해 질문·초안 단계가 같은 판독을 공유합니다.
 - 위험 등급은 AI의 4단계(low/medium/high/critical)를 백엔드 3단계로 접습니다 (`critical` → `HIGH`).
 - 부서는 ai-server가 돌려준 코드를 `departments.code`로 조회합니다. 양쪽 코드 집합(`FACILITY`/`SAFETY_CENTER`/`GENERAL_AFFAIRS`)이 일치해야 합니다.
 - `POST /api/v1/ai/analyze-content`, `POST /api/v1/ai/draft-from-text`는 사진 없는 텍스트 전용 계약이라 ai-server에 대응 경로가 없습니다. `http` 모드에서도 목 응답을 반환합니다.
-
-### 알려진 한계
-
-프런트가 질문 3개를 한 번에 받아 화면에서 하나씩 보여주는 구조라, 백엔드가 `②`를 답변 없이 3번 연속 호출합니다.
-이미 만든 질문을 이력으로 넘겨 중복을 억제하지만, 직전 답변을 반영하는 대화형 호출보다는 질문이 겹칠 여지가 있습니다.
-프런트를 질문 1개씩 받아오는 방식으로 바꾸면 ai-server 설계대로 동작합니다.
 
 ## IDE에서 백엔드만 실행
 
