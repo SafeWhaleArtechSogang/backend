@@ -5,6 +5,10 @@ import com.safewhale.building.repository.BuildingRepository;
 import com.safewhale.common.exception.BusinessException;
 import com.safewhale.common.exception.ErrorCode;
 import com.safewhale.department.repository.DepartmentRepository;
+import com.safewhale.file.storage.FileStorageService;
+import com.safewhale.photo.domain.ReportPhoto;
+import com.safewhale.photo.repository.ReportPhotoRepository;
+import com.safewhale.report.domain.Report;
 import com.safewhale.report.dto.ReportResponse;
 import com.safewhale.report.service.ReportService;
 import com.safewhale.report.service.ReportViewService;
@@ -22,6 +26,8 @@ public class AiAnalysisService {
     private final ReportViewService viewService;
     private final DepartmentRepository departmentRepository;
     private final BuildingRepository buildingRepository;
+    private final ReportPhotoRepository photoRepository;
+    private final FileStorageService storageService;
 
     @Transactional(readOnly = true)
     public List<LocationCandidate> analyzeLocation(BigDecimal lat, BigDecimal lng) {
@@ -33,10 +39,7 @@ public class AiAnalysisService {
     @Transactional
     public ReportResponse analyzeContent(Long reportId, Long userId, String description) {
         var report = reportService.getOwnedDraft(reportId, userId);
-        String location = report.getLocationDescription() != null && !report.getLocationDescription().isBlank()
-                ? report.getLocationDescription()
-                : report.getBuildingNameSnapshot() == null ? "위치 미정" : report.getBuildingNameSnapshot();
-        var result = client.analyzeContent(description, location);
+        var result = client.analyzeContent(description, locationOf(report));
         var department = departmentRepository.findByCode(result.departmentCode())
                 .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND));
         report.applyAiAnalysis(result.summary(), result.description(), result.riskLevel(), department, result.detectedHazards());
@@ -49,8 +52,8 @@ public class AiAnalysisService {
 
     @Transactional(readOnly = true)
     public AiAnalysisClient.QuestionSet createReportQuestions(Long reportId, Long userId, String incidentDescription) {
-        reportService.getOwnedDraft(reportId, userId);
-        return client.createReportQuestions(incidentDescription);
+        var report = reportService.getOwnedDraft(reportId, userId);
+        return client.createReportQuestions(contextOf(report, incidentDescription));
     }
 
     @Transactional
@@ -58,13 +61,47 @@ public class AiAnalysisService {
                                                            String incidentDescription,
                                                            List<AiAnalysisClient.Answer> answers) {
         var report = reportService.getOwnedDraft(reportId, userId);
-        var draft = client.createReportDraft(locationDescription, incidentDescription, answers);
-        var analysis = client.analyzeContent(draft.hazardContent(), locationDescription);
-        var department = departmentRepository.findByCode(analysis.departmentCode())
-                .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND));
-        report.applyAiAnalysis(draft.summary(), draft.hazardContent(), analysis.riskLevel(), department,
-                analysis.detectedHazards());
+        var context = new AiAnalysisClient.ReportContext(sessionId(report), locationDescription, incidentDescription,
+                loadPhoto(report));
+        var draft = client.createReportDraft(context, answers);
+        var department = departmentRepository.findByCode(draft.departmentCode())
+                .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND,
+                        "AI가 판정한 부서 코드를 찾을 수 없습니다: " + draft.departmentCode()));
+        report.applyAiAnalysis(draft.summary(), draft.hazardContent(), draft.riskLevel(), department,
+                draft.detectedHazards());
         return draft;
+    }
+
+    private AiAnalysisClient.ReportContext contextOf(Report report, String incidentDescription) {
+        return new AiAnalysisClient.ReportContext(sessionId(report), locationOf(report), incidentDescription,
+                loadPhoto(report));
+    }
+
+    /** 사진 판독 결과를 신고 단위로 재사용하려면 두 호출이 같은 세션 키를 써야 한다. */
+    private String sessionId(Report report) {
+        return "report-" + report.getId();
+    }
+
+    private String locationOf(Report report) {
+        if (report.getLocationDescription() != null && !report.getLocationDescription().isBlank()) {
+            return report.getLocationDescription();
+        }
+        return report.getBuildingNameSnapshot() == null ? "위치 미정" : report.getBuildingNameSnapshot();
+    }
+
+    /** 신고에 붙은 첫 사진을 바이트로 읽는다. 사진이 없으면 목 구현이 무시할 수 있도록 null 을 준다. */
+    private AiAnalysisClient.Photo loadPhoto(Report report) {
+        return photoRepository.findAllByReportIdOrderByDisplayOrder(report.getId()).stream()
+                .findFirst()
+                .map(this::readPhoto)
+                .orElse(null);
+    }
+
+    private AiAnalysisClient.Photo readPhoto(ReportPhoto photo) {
+        var loaded = storageService.load(photo.getUrl());
+        String mimeType = photo.getMimeType() == null || photo.getMimeType().isBlank()
+                ? loaded.mimeType() : photo.getMimeType();
+        return new AiAnalysisClient.Photo(loaded.bytes(), mimeType);
     }
 
     public record LocationCandidate(Long buildingId, String name, BigDecimal lat, BigDecimal lng) {}

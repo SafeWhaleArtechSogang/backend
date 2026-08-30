@@ -1,6 +1,13 @@
 app:
   external:
-    ai: mock
+    # mock | http — http 면 ai-server(FastAPI)를 실제로 호출한다.
+    ai: ${AI_MODE:mock}
+    ai-server:
+      base-url: ${AI_SERVER_BASE_URL:http://localhost:8000}
+      connect-timeout: 5s
+      # 사진 판독 + 질문 3개 순차 생성이 한 요청에 몰려 Gemini 호출이 4번 나간다.
+      read-timeout: ${AI_SERVER_READ_TIMEOUT:180s}
+      question-count: 3
     social-login: google
     push: mock
     storage: local
