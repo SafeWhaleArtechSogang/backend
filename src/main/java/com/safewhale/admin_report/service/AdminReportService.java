@@ -6,6 +6,7 @@ import com.safewhale.common.exception.BusinessException;
 import com.safewhale.common.exception.ErrorCode;
 import com.safewhale.common.response.PageResponse;
 import com.safewhale.department.repository.DepartmentRepository;
+import com.safewhale.file.hwp.HwpReportGenerator;
 import com.safewhale.notification.client.PushNotificationClient;
 import com.safewhale.notification.domain.Notification;
 import com.safewhale.notification.domain.NotificationType;
@@ -38,6 +39,7 @@ public class AdminReportService {
     private final HighRiskNotificationService highRiskNotificationService;
     private final PushNotificationClient pushClient;
     private final ReportViewService viewService;
+    private final HwpReportGenerator hwpReportGenerator;
 
     @Transactional(readOnly = true)
     public StatsResponse stats() {
@@ -134,6 +136,15 @@ public class AdminReportService {
     public String reportFile(Long id) {
         String url = getReport(id).getReportFileUrl();
         if (url == null) throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "생성된 보고서 파일이 없습니다.");
+        return url;
+    }
+
+    /** 관리자 대시보드에서 현재 신고 정보로 HWP를 다시 생성한다. */
+    @Transactional
+    public String generateReportFile(Long id) {
+        Report report = getReport(id);
+        String url = hwpReportGenerator.generate(report);
+        report.attachReportFile(url);
         return url;
     }
 

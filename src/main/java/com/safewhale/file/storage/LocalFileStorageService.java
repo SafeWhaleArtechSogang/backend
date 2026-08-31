@@ -36,6 +36,20 @@ public class LocalFileStorageService implements FileStorageService {
     }
 
     @Override
+    public StoredFile store(byte[] bytes, String originalFilename, String mimeType) {
+        String original = StringUtils.cleanPath(originalFilename == null ? "file" : originalFilename);
+        String extension = original.lastIndexOf('.') >= 0 ? original.substring(original.lastIndexOf('.')) : "";
+        String storedName = UUID.randomUUID() + extension;
+        try {
+            Files.createDirectories(uploadDirectory);
+            Files.write(uploadDirectory.resolve(storedName), bytes);
+            return new StoredFile(URL_PREFIX + storedName, original, mimeType, bytes.length);
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR);
+        }
+    }
+
+    @Override
     public LoadedFile load(String url) {
         if (url == null || !url.startsWith(URL_PREFIX)) {
             throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR, "읽을 수 없는 파일 경로입니다: " + url);

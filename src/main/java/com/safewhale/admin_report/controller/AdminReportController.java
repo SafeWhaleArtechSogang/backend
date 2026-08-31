@@ -46,6 +46,11 @@ public class AdminReportController {
     @GetMapping("/reports/{id}/report-file")
     ApiResponse<FileResponse> reportFile(@PathVariable Long id) { return ApiResponse.ok(new FileResponse(service.reportFile(id))); }
 
+    @PostMapping("/reports/{id}/report-file")
+    ApiResponse<FileResponse> generateReportFile(@PathVariable Long id) {
+        return ApiResponse.ok(new FileResponse(service.generateReportFile(id)));
+    }
+
     /** 위험도 판단 근거(④)와 담당자용 인사이트(⑤). 인사이트는 생성 전이면 null 이다. */
     @GetMapping("/reports/{id}/insight")
     ApiResponse<ReportInsightResponse> insight(@PathVariable Long id) {
