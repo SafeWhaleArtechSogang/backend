@@ -26,6 +26,12 @@ public class AuthService {
         SocialOAuthClient.SocialProfile profile = socialOAuthClient.getGoogleProfile(idToken);
         User user = userRepository.findByProviderAndProviderId(profile.provider(), profile.providerId())
                 .orElseGet(() -> userRepository.save(new User(profile.provider(), profile.providerId(), profile.nickname())));
+
+        // 역할 선택을 클라이언트에 맡기지 않는다. 운영자가 미리 연결한 Google 계정만 관리자 JWT를 받는다.
+        var admin = adminRepository.findByUserId(user.getId());
+        if (admin.isPresent()) {
+            return tokenProvider.issue(admin.get().getId(), PrincipalType.ADMIN);
+        }
         return tokenProvider.issue(user.getId(), PrincipalType.USER);
     }
 
@@ -33,7 +39,7 @@ public class AuthService {
     public JwtTokenProvider.TokenPair loginAdmin(String loginId, String password) {
         var admin = adminRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN, "관리자 로그인 정보가 올바르지 않습니다."));
-        if (!passwordEncoder.matches(password, admin.getPasswordHash())) {
+        if (admin.getPasswordHash() == null || !passwordEncoder.matches(password, admin.getPasswordHash())) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN, "관리자 로그인 정보가 올바르지 않습니다.");
         }
         return tokenProvider.issue(admin.getId(), PrincipalType.ADMIN);

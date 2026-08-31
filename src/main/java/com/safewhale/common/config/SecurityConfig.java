@@ -40,6 +40,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/buildings/**", "/api/v1/reports/map", "/api/v1/reports/*").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/actuator/health", "/files/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        // 관리자 JWT의 id는 admins.id다. 사용자 전용 API에 통과시키면 users.id와 우연히
+                        // 같을 때 다른 사용자의 데이터를 조회할 수 있으므로 역할을 명시적으로 분리한다.
+                        .requestMatchers("/api/v1/me/**", "/api/v1/ai/**").hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/reports/**").hasRole("USER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/reports/**").hasRole("USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/reports/**").hasRole("USER")
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors.authenticationEntryPoint((request, response, exception) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

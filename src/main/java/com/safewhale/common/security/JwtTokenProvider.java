@@ -25,7 +25,7 @@ public class JwtTokenProvider {
         String role = principalType == PrincipalType.ADMIN ? "ROLE_ADMIN" : "ROLE_USER";
         return new TokenPair(create(id, principalType, role, "access", properties.accessExpirationSeconds()),
                 create(id, principalType, role, "refresh", properties.refreshExpirationSeconds()),
-                properties.accessExpirationSeconds());
+                properties.accessExpirationSeconds(), principalType);
     }
 
     public TokenPair refresh(String refreshToken) {
@@ -66,5 +66,5 @@ public class JwtTokenProvider {
         }
     }
 
-    public record TokenPair(String accessToken, String refreshToken, long expiresIn) {}
+    public record TokenPair(String accessToken, String refreshToken, long expiresIn, PrincipalType principalType) {}
 }
