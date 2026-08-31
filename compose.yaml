@@ -19,6 +19,8 @@ services:
       AI_MODE: ${AI_MODE:-mock}
       # ai-server 는 별도 compose 프로젝트라 호스트 포워딩된 포트로 나갔다 들어온다.
       AI_SERVER_BASE_URL: ${AI_SERVER_BASE_URL:-http://host.docker.internal:8000}
+      # AI 서버가 /internal/** 를 부를 때 제시하는 토큰. ai-server 의 .env 와 같은 값.
+      AGENT_TOKEN: ${AGENT_TOKEN:-dev-agent-token}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
@@ -36,7 +38,10 @@ services:
       - "host.docker.internal:host-gateway"
 
   postgres:
-    image: postgres:16-alpine
+    # pgvector 확장이 포함된 이미지. 같은 PG 16 이라 볼륨은 그대로 재사용한다.
+    # 주의: alpine(musl) → Debian(glibc) 이라 텍스트 인덱스 정렬 구현이 바뀐다.
+    # 교체 후 REINDEX DATABASE 를 한 번 돌릴 것 (데이터가 적을 때 해야 순식간에 끝난다).
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-safewhale}

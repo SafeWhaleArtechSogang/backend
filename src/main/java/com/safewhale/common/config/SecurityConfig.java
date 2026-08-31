@@ -2,14 +2,17 @@ package com.safewhale.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safewhale.common.response.ApiResponse;
+import com.safewhale.common.security.AgentTokenFilter;
 import com.safewhale.common.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -28,9 +31,29 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
+    private final AgentTokenFilter agentTokenFilter;
     private final ObjectMapper objectMapper;
 
+    /**
+     * AI 서버 전용 체인. JWT 가 아니라 {@code X-Agent-Token} 으로 통과시킨다.
+     *
+     * <p>기본 체인보다 먼저 등록해야 {@code /internal/**} 이 JWT 체인에 잡히지 않는다.
+     * CORS 는 열지 않는다 — 브라우저가 부를 경로가 아니다.
+     */
     @Bean
+    @Order(1)
+    SecurityFilterChain internalFilterChain(HttpSecurity http) throws Exception {
+        http.securityMatcher("/internal/**")
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .addFilterBefore(agentTokenFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .cors(cors -> {})
@@ -54,6 +77,23 @@ public class SecurityConfig {
                 }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /**
+     * AgentTokenFilter 를 <b>서블릿 전역 체인에서 뺀다.</b>
+     *
+     * <p>Spring Boot 는 Filter 타입 빈을 자동으로 {@code /*} 에 등록한다. 그대로 두면
+     * 이 필터가 Security 체인 밖에서도 돌아 {@code /actuator/health} 와
+     * {@code /api/v1/auth/**} 까지 401 로 막는다. 이 필터는 internalChain 안에서만 돌아야 한다.
+     *
+     * <p>JwtAuthenticationFilter 도 같은 방식으로 전역 등록되지만, 토큰이 없으면 그냥
+     * 통과시키는 관대한 필터라 증상이 드러나지 않을 뿐이다.
+     */
+    @Bean
+    FilterRegistrationBean<AgentTokenFilter> disableAgentTokenFilterAutoRegistration(AgentTokenFilter filter) {
+        FilterRegistrationBean<AgentTokenFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

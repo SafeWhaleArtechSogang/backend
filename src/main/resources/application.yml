@@ -25,6 +25,14 @@ server:
 app:
   external:
     google-client-id: ${GOOGLE_CLIENT_ID:}
+  # AI 서버(FastAPI)가 /internal/** 를 부를 때 쓰는 대칭 토큰.
+  # ai-server 의 .env AGENT_TOKEN 과 같은 값이어야 한다.
+  agent:
+    token: ${AGENT_TOKEN:dev-agent-token}
+  ai:
+    # C-2 부서 판정. 이 값 미만이면 default-department-code 로 강등한다.
+    department-confidence-threshold: ${AI_DEPARTMENT_CONFIDENCE_THRESHOLD:0.7}
+    default-department-code: ${AI_DEFAULT_DEPARTMENT_CODE:SAFETY_CENTER}
   jwt:
     secret: ${JWT_SECRET}
     access-expiration-seconds: 1800
