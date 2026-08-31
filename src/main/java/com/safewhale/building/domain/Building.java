@@ -18,9 +18,9 @@ public class Building extends BaseTimeEntity {
     private String name;
     @Column(unique = true, length = 30)
     private String code;
-    @Column(nullable = false, precision = 10, scale = 7)
+    @Column(precision = 10, scale = 7)
     private BigDecimal lat;
-    @Column(nullable = false, precision = 10, scale = 7)
+    @Column(precision = 10, scale = 7)
     private BigDecimal lng;
     private String address;
 
