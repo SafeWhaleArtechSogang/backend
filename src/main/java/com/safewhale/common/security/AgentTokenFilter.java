@@ -32,6 +32,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class AgentTokenFilter extends OncePerRequestFilter {
     public static final String HEADER = "X-Agent-Token";
+    /** 이 접두사 밖의 요청은 건드리지 않는다. */
+    public static final String INTERNAL_PREFIX = "/internal/";
     private static final List<SimpleGrantedAuthority> AUTHORITIES =
             List.of(new SimpleGrantedAuthority("ROLE_AGENT"));
 
@@ -41,6 +43,19 @@ public class AgentTokenFilter extends OncePerRequestFilter {
     public AgentTokenFilter(@Value("${app.agent.token}") String token, ObjectMapper objectMapper) {
         this.expected = token.getBytes(StandardCharsets.UTF_8);
         this.objectMapper = objectMapper;
+    }
+
+    /**
+     * {@code /internal/**} 밖에서는 아무 일도 하지 않는다.
+     *
+     * <p>Spring Boot 는 Filter 타입 빈을 서블릿 전역 체인에도 자동 등록한다. SecurityConfig 에서
+     * {@code FilterRegistrationBean} 으로 그 등록을 꺼 두지만, 그것만 믿으면 등록 설정이
+     * 사라지는 순간 <b>모든 요청이 401</b> 이 된다 (헬스체크와 로그인 포함). 실제로 그렇게 됐었다.
+     * 필터 자신이 경로를 확인하게 해서 등록 방식과 무관하게 안전하도록 둔다.
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return !request.getRequestURI().startsWith(INTERNAL_PREFIX);
     }
 
     @Override

@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -76,6 +77,23 @@ public class SecurityConfig {
                 }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /**
+     * AgentTokenFilter 를 <b>서블릿 전역 체인에서 뺀다.</b>
+     *
+     * <p>Spring Boot 는 Filter 타입 빈을 자동으로 {@code /*} 에 등록한다. 그대로 두면
+     * 이 필터가 Security 체인 밖에서도 돌아 {@code /actuator/health} 와
+     * {@code /api/v1/auth/**} 까지 401 로 막는다. 이 필터는 internalChain 안에서만 돌아야 한다.
+     *
+     * <p>JwtAuthenticationFilter 도 같은 방식으로 전역 등록되지만, 토큰이 없으면 그냥
+     * 통과시키는 관대한 필터라 증상이 드러나지 않을 뿐이다.
+     */
+    @Bean
+    FilterRegistrationBean<AgentTokenFilter> disableAgentTokenFilterAutoRegistration(AgentTokenFilter filter) {
+        FilterRegistrationBean<AgentTokenFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
