@@ -1,3 +1,3 @@
 package com.safewhale.notification.domain;
 
-public enum NotificationType { SUBMITTED, STATUS_CHANGED, RESOLVED }
+public enum NotificationType { SUBMITTED, HIGH_RISK, STATUS_CHANGED, RESOLVED }

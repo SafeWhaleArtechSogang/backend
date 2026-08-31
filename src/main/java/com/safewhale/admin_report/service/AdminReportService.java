@@ -10,6 +10,7 @@ import com.safewhale.notification.client.PushNotificationClient;
 import com.safewhale.notification.domain.Notification;
 import com.safewhale.notification.domain.NotificationType;
 import com.safewhale.notification.repository.NotificationRepository;
+import com.safewhale.notification.service.HighRiskNotificationService;
 import com.safewhale.report.domain.*;
 import com.safewhale.report.dto.ReportResponse;
 import com.safewhale.report.repository.ReportRepository;
@@ -34,6 +35,7 @@ public class AdminReportService {
     private final DepartmentRepository departmentRepository;
     private final ReportActivityLogRepository activityRepository;
     private final NotificationRepository notificationRepository;
+    private final HighRiskNotificationService highRiskNotificationService;
     private final PushNotificationClient pushClient;
     private final ReportViewService viewService;
 
@@ -108,7 +110,9 @@ public class AdminReportService {
     @Transactional
     public ReportResponse adjustRisk(Long id, RiskLevel riskLevel) {
         Report report = getReport(id);
+        RiskLevel previousRiskLevel = report.getRiskLevel();
         report.adjustRiskLevel(riskLevel);
+        highRiskNotificationService.notifyRiskEscalated(report, previousRiskLevel);
         return viewService.toResponse(report, true, true);
     }
 

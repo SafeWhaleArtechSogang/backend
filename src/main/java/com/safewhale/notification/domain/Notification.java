@@ -1,5 +1,6 @@
 package com.safewhale.notification.domain;
 
+import com.safewhale.admin.domain.Admin;
 import com.safewhale.report.domain.Report;
 import com.safewhale.user.domain.User;
 import jakarta.persistence.*;
@@ -17,8 +18,10 @@ public class Notification {
     private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "report_id", nullable = false)
     private Report report;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id")
     private User user;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "admin_id")
+    private Admin admin;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private NotificationType type;
     @Column(nullable = false, length = 100)
@@ -34,6 +37,11 @@ public class Notification {
 
     public Notification(Report report, User user, NotificationType type, String title, String message) {
         this.report = report; this.user = user; this.type = type; this.title = title; this.message = message;
+        this.createdAt = Instant.now();
+    }
+
+    public Notification(Report report, Admin admin, NotificationType type, String title, String message) {
+        this.report = report; this.admin = admin; this.type = type; this.title = title; this.message = message;
         this.createdAt = Instant.now();
     }
 

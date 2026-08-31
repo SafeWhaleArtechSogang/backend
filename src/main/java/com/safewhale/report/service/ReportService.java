@@ -10,6 +10,7 @@ import com.safewhale.file.hwp.HwpReportGenerator;
 import com.safewhale.notification.domain.Notification;
 import com.safewhale.notification.domain.NotificationType;
 import com.safewhale.notification.repository.NotificationRepository;
+import com.safewhale.notification.service.HighRiskNotificationService;
 import com.safewhale.report.domain.*;
 import com.safewhale.report.dto.ReportResponse;
 import com.safewhale.report.repository.ReportRepository;
@@ -32,6 +33,7 @@ public class ReportService {
     private final BuildingRepository buildingRepository;
     private final ReportActivityLogRepository activityRepository;
     private final NotificationRepository notificationRepository;
+    private final HighRiskNotificationService highRiskNotificationService;
     private final HwpReportGenerator hwpReportGenerator;
     private final ReportViewService viewService;
     private final ApplicationEventPublisher eventPublisher;
@@ -85,6 +87,7 @@ public class ReportService {
                 ActorType.USER, userId, null, ActivityType.STATUS_CHANGE));
         notificationRepository.save(new Notification(report, report.getReporter(), NotificationType.SUBMITTED,
                 "신고가 접수되었습니다", trackingId + " 신고가 정상적으로 접수되었습니다."));
+        highRiskNotificationService.notifySubmittedHighRisk(report);
         // 담당자용 인사이트는 커밋 이후 비동기로 만든다. 제출 응답을 붙잡아 두지 않는다.
         eventPublisher.publishEvent(new ReportSubmittedEvent(report.getId()));
         return viewService.toResponse(report, true, false);
