@@ -4,6 +4,9 @@ import com.safewhale.common.response.ApiResponse;
 import com.safewhale.common.security.SecurityPrincipal;
 import com.safewhale.report.dto.ReportResponse;
 import com.safewhale.user.service.MeService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,6 +21,13 @@ public class MeController {
     @GetMapping("/profile")
     ApiResponse<MeService.ProfileResponse> profile(@AuthenticationPrincipal SecurityPrincipal principal) {
         return ApiResponse.ok(service.profile(principal.id()));
+    }
+
+    @PatchMapping("/profile")
+    ApiResponse<MeService.ProfileResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request,
+            @AuthenticationPrincipal SecurityPrincipal principal) {
+        return ApiResponse.ok(service.updateProfile(principal.id(), request.name(), request.major(),
+                request.studentNo(), request.phone()));
     }
 
     @GetMapping("/reports")
@@ -35,4 +45,10 @@ public class MeController {
         service.readNotification(principal.id(), id);
         return ApiResponse.ok();
     }
+
+    record ProfileUpdateRequest(
+            @NotBlank String name,
+            @NotBlank String major,
+            @NotBlank String studentNo,
+            @NotBlank @Pattern(regexp = "^[0-9+() -]{7,20}$", message = "연락처 형식이 올바르지 않습니다.") String phone) {}
 }

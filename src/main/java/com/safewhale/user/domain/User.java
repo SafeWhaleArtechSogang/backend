@@ -23,6 +23,8 @@ public class User extends BaseTimeEntity {
     private String major;
     @Column(name = "student_no", length = 20)
     private String studentNo;
+    @Column(length = 20)
+    private String phone;
     @Column(name = "push_token")
     private String pushToken;
 
@@ -32,9 +34,18 @@ public class User extends BaseTimeEntity {
         this.name = name;
     }
 
-    public void updateProfile(String name, String major, String studentNo) {
+    public void updateProfile(String name, String major, String studentNo, String phone) {
         this.name = name;
         this.major = major;
         this.studentNo = studentNo;
+        this.phone = phone;
+    }
+
+    public boolean isProfileCompleted() {
+        return !isBlank(name) && !isBlank(major) && !isBlank(studentNo) && !isBlank(phone);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

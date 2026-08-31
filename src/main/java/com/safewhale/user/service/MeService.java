@@ -25,7 +25,14 @@ public class MeService {
     @Transactional(readOnly = true)
     public ProfileResponse profile(Long userId) {
         var user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return new ProfileResponse(user.getId(), user.getName(), user.getMajor(), user.getStudentNo());
+        return ProfileResponse.from(user);
+    }
+
+    @Transactional
+    public ProfileResponse updateProfile(Long userId, String name, String major, String studentNo, String phone) {
+        var user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.updateProfile(name.trim(), major.trim(), studentNo.trim(), phone.trim());
+        return ProfileResponse.from(user);
     }
 
     @Transactional(readOnly = true)
@@ -48,7 +55,13 @@ public class MeService {
         notification.markRead();
     }
 
-    public record ProfileResponse(Long id, String name, String major, String studentNo) {}
+    public record ProfileResponse(Long id, String name, String major, String studentNo, String phone,
+                                  boolean profileCompleted) {
+        static ProfileResponse from(com.safewhale.user.domain.User user) {
+            return new ProfileResponse(user.getId(), user.getName(), user.getMajor(), user.getStudentNo(),
+                    user.getPhone(), user.isProfileCompleted());
+        }
+    }
     public record NotificationResponse(Long id, String trackingId, String type, String title,
                                        String message, boolean read, Instant createdAt) {}
 }
