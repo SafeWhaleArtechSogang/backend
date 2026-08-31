@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class LocalFileStorageService implements FileStorageService {
+    private static final String URL_PREFIX = "/files/";
     private final Path uploadDirectory;
 
     public LocalFileStorageService(@Value("${app.file.upload-dir}") String uploadDirectory) {
@@ -28,7 +29,24 @@ public class LocalFileStorageService implements FileStorageService {
         try {
             Files.createDirectories(uploadDirectory);
             Files.copy(file.getInputStream(), uploadDirectory.resolve(storedName), StandardCopyOption.REPLACE_EXISTING);
-            return new StoredFile("/files/" + storedName, original, file.getContentType(), file.getSize());
+            return new StoredFile(URL_PREFIX + storedName, original, file.getContentType(), file.getSize());
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR);
+        }
+    }
+
+    @Override
+    public LoadedFile load(String url) {
+        if (url == null || !url.startsWith(URL_PREFIX)) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR, "읽을 수 없는 파일 경로입니다: " + url);
+        }
+        Path path = uploadDirectory.resolve(url.substring(URL_PREFIX.length())).normalize();
+        if (!path.startsWith(uploadDirectory) || !Files.isRegularFile(path)) {
+            throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR, "파일을 찾을 수 없습니다: " + url);
+        }
+        try {
+            String mimeType = Files.probeContentType(path);
+            return new LoadedFile(Files.readAllBytes(path), mimeType == null ? "image/jpeg" : mimeType);
         } catch (IOException exception) {
             throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR);
         }

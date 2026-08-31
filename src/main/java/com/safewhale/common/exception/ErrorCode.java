@@ -21,6 +21,7 @@ public enum ErrorCode {
     REPORT_ALREADY_SUBMITTED(HttpStatus.CONFLICT, "이미 제출된 신고입니다."),
     PHOTO_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "사진 업로드 개수를 초과했습니다."),
     FILE_STORAGE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "파일 저장에 실패했습니다."),
+    AI_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AI 분석 서버 호출에 실패했습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
 
     private final HttpStatus status;

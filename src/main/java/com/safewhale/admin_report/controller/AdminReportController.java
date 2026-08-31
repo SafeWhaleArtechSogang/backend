@@ -4,6 +4,8 @@ import com.safewhale.admin_report.service.AdminReportService;
 import com.safewhale.common.response.ApiResponse;
 import com.safewhale.common.response.PageResponse;
 import com.safewhale.common.security.SecurityPrincipal;
+import com.safewhale.insight.dto.ReportInsightResponse;
+import com.safewhale.insight.service.ReportInsightService;
 import com.safewhale.report.domain.ReportStatus;
 import com.safewhale.report.domain.RiskLevel;
 import com.safewhale.report.dto.ReportResponse;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AdminReportController {
     private final AdminReportService service;
+    private final ReportInsightService insightService;
 
     @GetMapping("/stats/summary")
     ApiResponse<AdminReportService.StatsResponse> stats() { return ApiResponse.ok(service.stats()); }
@@ -42,6 +45,18 @@ public class AdminReportController {
 
     @GetMapping("/reports/{id}/report-file")
     ApiResponse<FileResponse> reportFile(@PathVariable Long id) { return ApiResponse.ok(new FileResponse(service.reportFile(id))); }
+
+    /** 위험도 판단 근거(④)와 담당자용 인사이트(⑤). 인사이트는 생성 전이면 null 이다. */
+    @GetMapping("/reports/{id}/insight")
+    ApiResponse<ReportInsightResponse> insight(@PathVariable Long id) {
+        return ApiResponse.ok(insightService.find(id));
+    }
+
+    /** 인사이트 재생성. 제출 직후 비동기 생성이 실패했거나 내용을 갱신할 때 쓴다. */
+    @PostMapping("/reports/{id}/insight")
+    ApiResponse<ReportInsightResponse> regenerateInsight(@PathVariable Long id) {
+        return ApiResponse.ok(insightService.generate(id));
+    }
 
     @PatchMapping("/reports/{id}/status")
     ApiResponse<ReportResponse> status(@PathVariable Long id, @Valid @RequestBody StatusRequest request,
