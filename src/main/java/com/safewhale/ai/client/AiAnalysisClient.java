@@ -34,8 +34,16 @@ public interface AiAnalysisClient {
     record Question(String id, String text, List<String> options, boolean allowCustom) {}
     /** 한 번에 질문 하나. {@code introduction} 은 첫 질문에만 채운다. */
     record QuestionStep(String introduction, Question question, int questionIndex, int questionCount,
-                        boolean last) {}
-    record Answer(String questionId, String question, String answer) {}
+                        boolean last, String axis) {
+        QuestionStep(String introduction, Question question, int questionIndex, int questionCount, boolean last) {
+            this(introduction, question, questionIndex, questionCount, last, null);
+        }
+    }
+    record Answer(String questionId, String question, String answer, String axis) {
+        Answer(String questionId, String question, String answer) {
+            this(questionId, question, answer, null);
+        }
+    }
     record ReportDraft(String summary, String hazardContent, String improvementSuggestion,
                        RiskLevel riskLevel, String departmentCode, String detectedHazards,
                        String riskLevelRationale, Boolean riskLevelChanged) {}

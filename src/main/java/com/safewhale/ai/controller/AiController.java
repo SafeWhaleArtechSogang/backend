@@ -60,7 +60,8 @@ public class AiController {
     private static List<AiAnalysisClient.Answer> toAnswers(List<ReportAnswerRequest> answers) {
         if (answers == null) return List.of();
         return answers.stream()
-                .map(answer -> new AiAnalysisClient.Answer(answer.questionId(), answer.question(), answer.answer()))
+                .map(answer -> new AiAnalysisClient.Answer(
+                        answer.questionId(), answer.question(), answer.answer(), answer.axis()))
                 .toList();
     }
 
@@ -72,5 +73,6 @@ public class AiController {
     record ReportDraftRequest(@NotNull Long reportId, @NotBlank String locationDescription,
                               @NotBlank String incidentDescription,
                               @NotEmpty List<@Valid ReportAnswerRequest> answers) {}
-    record ReportAnswerRequest(@NotBlank String questionId, @NotBlank String question, @NotBlank String answer) {}
+    record ReportAnswerRequest(@NotBlank String questionId, @NotBlank String question, @NotBlank String answer,
+                               String axis) {}
 }

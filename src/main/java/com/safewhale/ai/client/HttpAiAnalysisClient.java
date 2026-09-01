@@ -84,14 +84,15 @@ public class HttpAiAnalysisClient implements AiAnalysisClient {
         AiServerClient.VisionResponse vision = analyzeVision(context);
         AiServerClient.QuestionResponse response = aiServer.nextQuestion(new AiServerClient.QuestionRequest(
                 context.sessionId(), context.locationText(), context.incidentDescription(), vision.toPayload(),
-                formatQaHistory(answers), index, count));
+                formatQaHistory(answers), index, count, askedAxes(answers)));
 
         List<String> options = response.options() == null ? List.of()
                 : response.options().stream().map(AiServerClient.OptionPayload::label).toList();
 
         log.debug("AI 확인 질문 {}/{} 생성 session={}", index, count, context.sessionId());
         return new QuestionStep(index == 1 ? QUESTION_INTRO : null,
-                new Question("q" + index, response.text(), options, true), index, count, index == count);
+                new Question("q" + index, response.text(), options, true), index, count, index == count,
+                response.axis());
     }
 
     @Override
@@ -183,6 +184,16 @@ public class HttpAiAnalysisClient implements AiAnalysisClient {
             index++;
         }
         return joiner.toString();
+    }
+
+    private List<String> askedAxes(List<Answer> answers) {
+        if (answers == null || answers.isEmpty()) return List.of();
+        return answers.stream()
+                .map(Answer::axis)
+                .filter(axis -> axis != null && !axis.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
     }
 
     /** 신고서의 "안전·보건 유해/위험/시설/장소 내용" 칸. 화면에서 그대로 수정할 수 있어야 해 항목별로 편다. */

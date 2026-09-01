@@ -89,28 +89,30 @@ public class AiServerClient {
     public record PhotoPayload(String base64, String mimeType) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public record VisionPayload(String detectedHazard, String photoAnalysis, String risk, String exposedTarget) {}
+    public record VisionPayload(String detectedHazard, String photoAnalysis, String risk, String exposedTarget,
+                                Double objectConfidence, List<String> objectCandidates) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record VisionRequest(String sessionId, String locationText, String description, PhotoPayload photo) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record VisionResponse(String detectedHazard, String photoAnalysis, String risk, String exposedTarget,
-                                 String riskLevel) {
+                                 String riskLevel, Double objectConfidence, List<String> objectCandidates) {
         public VisionPayload toPayload() {
-            return new VisionPayload(detectedHazard, photoAnalysis, risk, exposedTarget);
+            return new VisionPayload(detectedHazard, photoAnalysis, risk, exposedTarget,
+                    objectConfidence, objectCandidates);
         }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record QuestionRequest(String sessionId, String locationText, String description, VisionPayload vision,
-                                  String qaHistory, int questionIndex, int questionCount) {}
+                                  String qaHistory, int questionIndex, int questionCount, List<String> askedAxes) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record OptionPayload(String value, String label) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public record QuestionResponse(String text, List<OptionPayload> options) {}
+    public record QuestionResponse(String text, List<OptionPayload> options, String axis) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record DepartmentRequest(String sessionId, String locationText, VisionPayload vision) {}
