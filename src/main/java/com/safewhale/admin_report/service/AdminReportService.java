@@ -2,6 +2,7 @@ package com.safewhale.admin_report.service;
 
 import com.safewhale.activitylog.domain.*;
 import com.safewhale.activitylog.repository.ReportActivityLogRepository;
+import com.safewhale.admin.repository.AdminRepository;
 import com.safewhale.common.exception.BusinessException;
 import com.safewhale.common.exception.ErrorCode;
 import com.safewhale.common.response.PageResponse;
@@ -33,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminReportService {
     private final ReportRepository reportRepository;
+    private final AdminRepository adminRepository;
     private final DepartmentRepository departmentRepository;
     private final ReportActivityLogRepository activityRepository;
     private final NotificationRepository notificationRepository;
@@ -47,6 +49,13 @@ public class AdminReportService {
         return new StatsResponse(reportRepository.countByStatus(ReportStatus.RECEIVED),
                 reportRepository.countByStatus(ReportStatus.REVIEWING),
                 reportRepository.countByStatus(ReportStatus.RESOLVED), reportRepository.countBySubmittedAtAfter(today));
+    }
+
+    @Transactional(readOnly = true)
+    public AdminMeResponse me(Long adminId) {
+        var admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return new AdminMeResponse(admin.getName());
     }
 
     @Transactional(readOnly = true)
@@ -153,5 +162,6 @@ public class AdminReportService {
     }
 
     public record StatsResponse(long received, long reviewing, long resolved, long todayNew) {}
+    public record AdminMeResponse(String name) {}
     public record DepartmentPendingResponse(Long id, String name, long pendingCount) {}
 }

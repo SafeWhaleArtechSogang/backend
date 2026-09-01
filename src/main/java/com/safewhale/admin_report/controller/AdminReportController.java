@@ -27,6 +27,11 @@ public class AdminReportController {
     @GetMapping("/stats/summary")
     ApiResponse<AdminReportService.StatsResponse> stats() { return ApiResponse.ok(service.stats()); }
 
+    @GetMapping("/me")
+    ApiResponse<AdminReportService.AdminMeResponse> me(@AuthenticationPrincipal SecurityPrincipal principal) {
+        return ApiResponse.ok(service.me(principal.id()));
+    }
+
     @GetMapping("/departments")
     ApiResponse<List<AdminReportService.DepartmentPendingResponse>> departments() {
         return ApiResponse.ok(service.departments());
