@@ -37,11 +37,13 @@ import kr.dogfoot.hwplib.object.bodytext.control.ctrlheader.gso.VertRelTo;
 import kr.dogfoot.hwplib.object.bodytext.control.ctrlheader.gso.WidthCriterion;
 import kr.dogfoot.hwplib.object.bodytext.control.gso.ControlPicture;
 import kr.dogfoot.hwplib.object.bodytext.control.gso.GsoControlType;
-import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.ShapeComponent;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.ShapeComponentNormal;
 import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.lineinfo.LineArrowShape;
 import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.lineinfo.LineArrowSize;
 import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.lineinfo.LineEndShape;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.lineinfo.LineInfo;
 import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.lineinfo.LineType;
+import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponent.lineinfo.OutlineStyle;
 import kr.dogfoot.hwplib.object.bodytext.control.gso.shapecomponenteach.ShapeComponentPicture;
 import kr.dogfoot.hwplib.object.bodytext.control.table.Cell;
 import kr.dogfoot.hwplib.object.bodytext.control.table.Row;
@@ -188,7 +190,7 @@ public class TemplateHwpReportGenerator implements HwpReportGenerator {
         header.setInstanceId(0x5bb840e1L + binDataId);
         header.setPreventPageDivide(false);
 
-        ShapeComponent normal = picture.getShapeComponent();
+        ShapeComponentNormal normal = (ShapeComponentNormal) picture.getShapeComponent();
         normal.setOffsetX(0);
         normal.setOffsetY(0);
         normal.setGroupingCount(0);
@@ -200,6 +202,19 @@ public class TemplateHwpReportGenerator implements HwpReportGenerator {
         normal.setRotateAngle(0);
         normal.setRotateXCenter(size.width() / 2);
         normal.setRotateYCenter(size.height() / 2);
+        normal.createLineInfo();
+        LineInfo lineInfo = normal.getLineInfo();
+        lineInfo.getProperty().setLineEndShape(LineEndShape.Flat);
+        lineInfo.getProperty().setStartArrowShape(LineArrowShape.None);
+        lineInfo.getProperty().setStartArrowSize(LineArrowSize.MiddleMiddle);
+        lineInfo.getProperty().setEndArrowShape(LineArrowShape.None);
+        lineInfo.getProperty().setEndArrowSize(LineArrowSize.MiddleMiddle);
+        lineInfo.getProperty().setFillStartArrow(true);
+        lineInfo.getProperty().setFillEndArrow(true);
+        lineInfo.getProperty().setLineType(LineType.None);
+        lineInfo.setOutlineStyle(OutlineStyle.Normal);
+        lineInfo.setThickness(0);
+        lineInfo.getColor().setValue(0);
         normal.setMatrixsNormal();
 
         ShapeComponentPicture component = picture.getShapeComponentPicture();
