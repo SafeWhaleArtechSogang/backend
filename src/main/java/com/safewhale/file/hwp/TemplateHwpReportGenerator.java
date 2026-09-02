@@ -54,6 +54,9 @@ import kr.dogfoot.hwplib.object.docinfo.bindata.BinDataCompress;
 import kr.dogfoot.hwplib.object.docinfo.bindata.BinDataState;
 import kr.dogfoot.hwplib.object.docinfo.bindata.BinDataType;
 import kr.dogfoot.hwplib.object.docinfo.borderfill.fillinfo.PictureEffect;
+import kr.dogfoot.hwplib.org.apache.poi.poifs.filesystem.DirectoryEntry;
+import kr.dogfoot.hwplib.org.apache.poi.poifs.filesystem.Entry;
+import kr.dogfoot.hwplib.org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import kr.dogfoot.hwplib.reader.HWPReader;
 import kr.dogfoot.hwplib.writer.HWPWriter;
 import lombok.RequiredArgsConstructor;
@@ -83,13 +86,29 @@ public class TemplateHwpReportGenerator implements HwpReportGenerator {
             replaceTokens(hwp, tokenValues(report), photoRepository.findAllByReportIdOrderByDisplayOrder(report.getId()));
             HWPWriter.toStream(hwp, output);
             String trackingId = report.getTrackingId() == null ? "draft-" + report.getId() : report.getTrackingId();
-            return storageService.store(output.toByteArray(), "안전보건제안서-" + trackingId + ".hwp", HWP_MIME_TYPE).url();
+            return storageService.store(removeEmptyScriptsDirectory(output.toByteArray()), "안전보건제안서-" + trackingId + ".hwp", HWP_MIME_TYPE).url();
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
             log.error("HWP 신고서 생성 실패: reportId={}", report.getId(), exception);
             throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR, "HWP 신고서 생성에 실패했습니다.");
         }
+    }
+
+    /**
+     * hwplib가 HWP를 다시 쓸 때 비어 있는 {@code Scripts} 저장소를 만들 수 있다.
+     * 한컴은 Scripts 저장소가 존재하면 DefaultJScript 스트림도 요구하므로, 비어 있을 때만 제거한다.
+     */
+    private byte[] removeEmptyScriptsDirectory(byte[] rawHwp) throws Exception {
+        POIFSFileSystem fileSystem = new POIFSFileSystem(new ByteArrayInputStream(rawHwp));
+        DirectoryEntry root = fileSystem.getRoot();
+        if (root.hasEntry("Scripts")) {
+            Entry scripts = root.getEntry("Scripts");
+            if (scripts instanceof DirectoryEntry directory && directory.isEmpty()) scripts.delete();
+        }
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        fileSystem.writeFilesystem(output);
+        return output.toByteArray();
     }
 
     private Map<String, String> tokenValues(Report report) {
