@@ -55,12 +55,14 @@ import kr.dogfoot.hwplib.object.docinfo.borderfill.fillinfo.PictureEffect;
 import kr.dogfoot.hwplib.reader.HWPReader;
 import kr.dogfoot.hwplib.writer.HWPWriter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /** 관리자가 내려받는 안전·보건 제안서 HWP 양식의 일반 텍스트 토큰을 신고 데이터로 치환한다. */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class TemplateHwpReportGenerator implements HwpReportGenerator {
     private static final String TEMPLATE = "templates/safewhale-report-template.hwp";
     private static final String HWP_MIME_TYPE = "application/x-hwp";
@@ -83,6 +85,7 @@ public class TemplateHwpReportGenerator implements HwpReportGenerator {
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
+            log.error("HWP 신고서 생성 실패: reportId={}", report.getId(), exception);
             throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR, "HWP 신고서 생성에 실패했습니다.");
         }
     }
