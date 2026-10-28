@@ -14,6 +14,12 @@ spring:
 app:
   external:
     social-login: mock
+  agent:
+    token: test-agent-token
+  guest:
+    enabled: true
+    access-code: test-guest-code
+    admin-department-code: GUEST_TEST
   jwt:
     secret: c2FmZXdoYWxlLXRlc3Qtc2VjcmV0LW11c3QtYmUtYXQtbGVhc3QtMzItYnl0ZXM=
     access-expiration-seconds: 1800
